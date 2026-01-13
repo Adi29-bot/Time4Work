@@ -41,6 +41,7 @@ export default function AdminDashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [staffData, setStaffData] = useState(null);
   const [selectedDayDetails, setSelectedDayDetails] = useState(null);
+  const [dialog, setDialog] = useState({ isOpen: false, type: "success", title: "", message: "" });
 
   // --- EDIT & REGISTER STATE ---
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "staff" });
@@ -154,27 +155,55 @@ export default function AdminDashboard() {
     setIsEditModalOpen(true);
   };
 
-  // --- HANDLER: Save Edits ---
+  // --- HANDLER: Save Edits (Super Admin Mode) ---
   const handleUpdateUser = async () => {
     setRegLoading(true);
     try {
       let photoURL = editingUser.photoURL;
 
+      // 1. Upload new image if selected
       if (imageFile) {
         photoURL = await uploadToCloudinary(imageFile);
       }
 
+      // 2. Call Vercel API
+      const response = await fetch("/api/admin-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: editingUser.id,
+          email: editingUser.email,
+          password: editingUser.password,
+          displayName: editingUser.name,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      // 3. Update Firestore Profile
       await updateUserProfile(editingUser.id, {
-        name: editingUser.name,
         role: editingUser.role,
         photoURL: photoURL,
       });
 
       setIsEditModalOpen(false);
       loadStaff();
-      alert("User updated successfully!");
+
+      setDialog({
+        isOpen: true,
+        type: "success",
+        title: "Update Successful",
+        message: "User login details and profile have been updated.",
+      });
     } catch (error) {
-      alert("Update failed: " + error.message);
+      console.error(error);
+      setDialog({
+        isOpen: true,
+        type: "error",
+        title: "Update Failed",
+        message: error.message,
+      });
     } finally {
       setRegLoading(false);
     }
@@ -230,7 +259,7 @@ export default function AdminDashboard() {
                   key={emp.id}
                   onClick={() => setSelectedStaffId(emp.id)}
                   className={`flex flex-col items-center min-w-[72px] transition-all duration-300
-                   ${selectedStaffId === emp.id ? "transform scale-110 opacity-100" : "opacity-60 grayscale"}`}
+                   ${selectedStaffId === emp.id ? "transform scale-104 opacity-100" : "opacity-80 hover:opacity-100"}`}
                 >
                   <div className={`w-16 h-16 rounded-full border-2 mb-2 shadow-sm overflow-hidden flex items-center justify-center bg-white ${selectedStaffId === emp.id ? "border-blue-500 ring-2 ring-blue-100" : "border-gray-200"}`}>{emp.photoURL ? <img src={emp.photoURL} alt={emp.name} className='w-full h-full object-cover' /> : <span className='text-xl font-bold text-gray-400'>{emp.name?.charAt(0)}</span>}</div>
                   <span className='text-xs font-medium text-gray-700 truncate w-20 text-center'>{emp.name}</span>
@@ -425,6 +454,17 @@ export default function AdminDashboard() {
               </div>
 
               <div>
+                <label className='block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1'>Email Address</label>
+                <input type='email' className='w-full p-3 bg-gray-50 border border-gray-200 rounded-xl' value={editingUser?.email || ""} onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })} />
+              </div>
+
+              <div>
+                <label className='block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1'>New Password</label>
+                <input type='text' placeholder='Type to set new password' className='w-full p-3 bg-gray-50 border border-gray-200 rounded-xl' value={editingUser?.password || ""} onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })} />
+                <p className='text-[10px] text-gray-400 mt-1'>Leave blank to keep current password.</p>
+              </div>
+
+              <div>
                 <label className='block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1'>Role</label>
                 <div className='grid grid-cols-2 gap-4'>
                   <button type='button' onClick={() => setEditingUser({ ...editingUser, role: "staff" })} className={`p-3 rounded-xl border text-sm font-medium transition ${editingUser?.role === "staff" ? "bg-blue-50 border-blue-500 text-blue-700" : "bg-white border-gray-200 text-gray-600"}`}>
@@ -446,6 +486,21 @@ export default function AdminDashboard() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {dialog.isOpen && (
+        <div className='fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in'>
+          <div className='bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-100 transition-all'>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${dialog.type === "success" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>{dialog.type === "success" ? <CheckCircle size={32} /> : <AlertCircle size={32} />}</div>
+
+            <h3 className='text-xl font-bold text-gray-900 mb-2'>{dialog.title}</h3>
+            <p className='text-gray-500 mb-6 text-sm leading-relaxed'>{dialog.message}</p>
+
+            <button onClick={() => setDialog({ ...dialog, isOpen: false })} className={`w-full py-3 rounded-xl font-bold text-white shadow-lg transition transform active:scale-95 ${dialog.type === "success" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}`}>
+              Okay, Got it
+            </button>
           </div>
         </div>
       )}
