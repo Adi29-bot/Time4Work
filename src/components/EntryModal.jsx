@@ -19,18 +19,13 @@ export default function EntryModal({ date, existingEntries = [], onClose }) {
   const [step, setStep] = useState(existingEntries.length > 0 ? "list" : "select");
   const [selectedOption, setSelectedOption] = useState(null);
   const [location, setLocation] = useState(null);
-
-  // Form State
   const [entryId, setEntryId] = useState(null);
   const [time, setTime] = useState(format(new Date(), "HH:mm"));
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- CALCULATION: Daily Hours ---
   const dailyHours = useMemo(() => {
     if (!existingEntries || existingEntries.length === 0) return 0;
-
-    // Simple calc just for display (Real math happens in Backend)
     const sorted = [...existingEntries].sort((a, b) => a.time.localeCompare(b.time));
     let mins = 0;
     let start = null;
@@ -67,13 +62,11 @@ export default function EntryModal({ date, existingEntries = [], onClose }) {
   };
 
   const handleDeleteItem = async (e, id) => {
-    e.stopPropagation(); // Stop click from triggering Edit
+    e.stopPropagation();
     if (!window.confirm("Delete this entry?")) return;
 
     try {
       await deleteTimeEntry(date, id);
-      // Don't close modal, just let the parent refresh trigger update
-      // Note: In a real app, you might want to force a refresh here or update local state
       onClose();
     } catch (err) {
       alert("Could not delete");
@@ -120,7 +113,6 @@ export default function EntryModal({ date, existingEntries = [], onClose }) {
   return (
     <div className='fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4'>
       <div className='bg-white w-full max-w-md p-6 rounded-t-3xl sm:rounded-3xl h-[85vh] sm:h-auto overflow-y-auto shadow-2xl transition-transform'>
-        {/* HEADER */}
         <div className='flex justify-between items-center mb-6 border-b border-gray-100 pb-4'>
           <div className='flex items-center gap-2'>
             {step !== "list" && (
@@ -141,7 +133,6 @@ export default function EntryModal({ date, existingEntries = [], onClose }) {
         {/* --- VIEW 1: LIST --- */}
         {step === "list" && (
           <div className='animate-in fade-in duration-300'>
-            {/* List Header */}
             <div className='flex justify-between items-end mb-3'>
               <h4 className='text-sm font-bold text-gray-400 uppercase tracking-wider'>Today's Activity</h4>
             </div>
@@ -167,7 +158,6 @@ export default function EntryModal({ date, existingEntries = [], onClose }) {
                   </div>
 
                   <div className='flex items-center gap-2'>
-                    {/* DELETE BUTTON (Stop Propagation prevents opening Edit) */}
                     <button onClick={(e) => handleDeleteItem(e, entry.id)} className='p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition'>
                       <Trash2 size={18} />
                     </button>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isAfter } from "date-fns";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isAfter, getDay } from "date-fns";
 import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { useFirebase } from "../context/firebase";
 import EntryModal from "../components/EntryModal";
@@ -10,8 +10,6 @@ export default function StaffDashboard() {
   const { user, userData, logoutUser, getMyMonthData } = useFirebase();
 
   const [currentDate, setCurrentDate] = useState(new Date());
-
-  // Changed: store the Date Object AND the entries for that date
   const [selectedDateDetails, setSelectedDateDetails] = useState(null);
 
   const [monthData, setMonthData] = useState(null);
@@ -38,15 +36,13 @@ export default function StaffDashboard() {
   const monthEnd = endOfMonth(currentDate);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const totalHours = monthData?.totalHours || 0;
+  const startDayIndex = getDay(monthStart);
 
-  // --- HANDLER: Click on Day ---
   const handleDayClick = (day, entries) => {
-    // Prevent Future Dates
     if (isAfter(day, new Date())) {
       alert("You cannot add entries for future dates.");
       return;
     }
-    // Set State (Date + The array of existing entries)
     setSelectedDateDetails({ date: day, existingEntries: entries || [] });
   };
 
@@ -98,6 +94,10 @@ export default function StaffDashboard() {
         </div>
 
         <div className='grid grid-cols-7 gap-2'>
+          {Array.from({ length: startDayIndex }).map((_, i) => (
+            <div key={`empty-${i}`} />
+          ))}
+
           {daysInMonth.map((day) => {
             const dateKey = format(day, "yyyy-MM-dd");
             const dayEntries = monthData?.entries?.[dateKey];
@@ -126,14 +126,13 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      {/* MODAL */}
       {selectedDateDetails && (
         <EntryModal
           date={selectedDateDetails.date}
-          existingEntries={selectedDateDetails.existingEntries} // Pass existing data
+          existingEntries={selectedDateDetails.existingEntries}
           onClose={() => {
             setSelectedDateDetails(null);
-            getMyMonthData(currentDate).then(setMonthData); // Refresh after close
+            getMyMonthData(currentDate).then(setMonthData);
           }}
         />
       )}

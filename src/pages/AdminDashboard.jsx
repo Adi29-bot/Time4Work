@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from "date-fns";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, getDay } from "date-fns";
 import { ChevronLeft, ChevronRight, MapPin, Clock, Users, ClipboardCheck, UserPlus, CheckCircle, AlertCircle, Camera, UploadCloud, Pencil, Trash2, X, Save, LogOut } from "lucide-react";
 import { useFirebase } from "../context/firebase";
 
@@ -7,7 +7,6 @@ import { useFirebase } from "../context/firebase";
 const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/di1bvbygy/image/upload";
 const UPLOAD_PRESET = "time4work_preset";
 
-// --- LOCATION COMPONENT (Keep as is) ---
 const LocationDisplay = ({ lat, lng }) => {
   const [address, setAddress] = useState("Locating address...");
   useEffect(() => {
@@ -45,10 +44,8 @@ export default function AdminDashboard() {
 
   // --- EDIT & REGISTER STATE ---
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "staff" });
-
-  // Edit Mode State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState(null); // Holds data of user being edited
+  const [editingUser, setEditingUser] = useState(null);
 
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -85,7 +82,6 @@ export default function AdminDashboard() {
     loadMonthData();
   }, [selectedStaffId, currentDate]);
 
-  // Helper: Get currently selected staff object
   const selectedStaffMember = staffList.find((s) => s.id === selectedStaffId);
 
   // Helper: Daily Total
@@ -142,7 +138,7 @@ export default function AdminDashboard() {
       setNewUser({ name: "", email: "", password: "", role: "staff" });
       setImageFile(null);
       setImagePreview(null);
-      loadStaff(); // Refresh list
+      loadStaff();
     } catch (err) {
       setRegMessage({ type: "error", text: "Failed: " + err.message });
     } finally {
@@ -152,7 +148,7 @@ export default function AdminDashboard() {
 
   // --- HANDLER: Open Edit Modal ---
   const openEditModal = (staff) => {
-    setEditingUser({ ...staff }); // Copy staff data
+    setEditingUser({ ...staff });
     setImagePreview(staff.photoURL || null);
     setImageFile(null);
     setIsEditModalOpen(true);
@@ -164,12 +160,10 @@ export default function AdminDashboard() {
     try {
       let photoURL = editingUser.photoURL;
 
-      // If new image selected, upload it
       if (imageFile) {
         photoURL = await uploadToCloudinary(imageFile);
       }
 
-      // Update Firebase
       await updateUserProfile(editingUser.id, {
         name: editingUser.name,
         role: editingUser.role,
@@ -177,7 +171,7 @@ export default function AdminDashboard() {
       });
 
       setIsEditModalOpen(false);
-      loadStaff(); // Refresh list
+      loadStaff();
       alert("User updated successfully!");
     } catch (error) {
       alert("Update failed: " + error.message);
@@ -192,21 +186,20 @@ export default function AdminDashboard() {
       try {
         await deleteUserDocument(uid);
         setSelectedStaffId(null);
-        loadStaff(); // Refresh list
+        loadStaff();
       } catch (error) {
         alert("Delete failed: " + error.message);
       }
     }
   };
 
-  // Calendar Math
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const startDayIndex = getDay(monthStart);
 
   return (
     <div className='min-h-screen bg-gray-50 p-6 font-sans relative'>
-      {/* HEADER & TABS */}
       <div className='flex justify-between items-center mb-8'>
         <div>
           <h1 className='text-2xl font-bold text-gray-900'>Ready4Life Admin Portal</h1>
@@ -229,7 +222,6 @@ export default function AdminDashboard() {
       {/* TAB 1: TIMESHEETS */}
       {activeTab === "timesheets" && (
         <div className='animate-fade-in-up'>
-          {/* Staff List Bubbles */}
           <div className='mb-8'>
             <h2 className='text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 ml-1'>Select Employee</h2>
             <div className='flex space-x-4 overflow-x-auto pb-4 scrollbar-hide'>
@@ -247,10 +239,8 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Calendar Area */}
           {selectedStaffId ? (
             <div className='bg-white p-6 rounded-3xl shadow-sm border border-gray-100'>
-              {/* --- NEW: STAFF PROFILE HEADER (Edit/Delete) --- */}
               <div className='flex items-center justify-between mb-6 pb-6 border-b border-gray-100'>
                 <div className='flex items-center gap-3'>
                   <div className='w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold'>{selectedStaffMember?.photoURL ? <img src={selectedStaffMember.photoURL} className='w-full h-full rounded-full object-cover' /> : selectedStaffMember?.name?.[0]}</div>
@@ -269,7 +259,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Month & Total Header */}
               <div className='flex items-center justify-between mb-6'>
                 <div className='flex items-center'>
                   <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className='p-2 hover:bg-gray-50 rounded-full border border-gray-100 mr-2'>
@@ -285,13 +274,17 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              {/* Calendar Grid */}
               <div className='grid grid-cols-7 gap-1 mb-6'>
                 {["S", "M", "T", "W", "T", "F", "S"].map((d, index) => (
                   <div key={`${d}-${index}`} className='text-center text-xs font-bold text-gray-300 mb-2'>
                     {d}
                   </div>
                 ))}
+
+                {Array.from({ length: startDayIndex }).map((_, i) => (
+                  <div key={`empty-${i}`} />
+                ))}
+
                 {daysInMonth.map((day) => {
                   const dateKey = format(day, "yyyy-MM-dd");
                   const dayData = staffData?.entries?.[dateKey];
@@ -304,7 +297,6 @@ export default function AdminDashboard() {
                 })}
               </div>
 
-              {/* Day Details */}
               {selectedDayDetails && (
                 <div className='border-t border-dashed border-gray-200 pt-6 animate-fade-in'>
                   <div className='flex justify-between items-center mb-4'>
@@ -351,7 +343,6 @@ export default function AdminDashboard() {
       {/* TAB 2: REGISTER */}
       {activeTab === "register" && (
         <div className='max-w-xl mx-auto bg-white p-8 rounded-3xl shadow-sm border border-gray-100 animate-fade-in-up'>
-          {/* ... (Keep your existing Register Form Code here) ... */}
           <div className='text-center mb-6'>
             <div className='w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4'>
               <UserPlus size={24} />
@@ -420,7 +411,6 @@ export default function AdminDashboard() {
             </div>
 
             <div className='space-y-4'>
-              {/* Photo Edit */}
               <div className='flex flex-col items-center mb-4'>
                 <div className='relative w-20 h-20 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden group hover:border-blue-500 transition cursor-pointer'>
                   {imagePreview ? <img src={imagePreview} className='w-full h-full object-cover' /> : <Camera className='text-gray-400' size={24} />}

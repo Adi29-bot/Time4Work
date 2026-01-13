@@ -5,12 +5,8 @@ import Login from "./pages/Login";
 import StaffDashboard from "./pages/StaffDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 
-// --- Protected Route Component ---
 const ProtectedRoute = ({ children, requiredRole }) => {
-  // We can use useFirebase here because App is wrapped in FirebaseProvider in main.jsx
   const { user, userData, isLoggedIn, isLoading } = useFirebase();
-
-  // 1. Wait for Firebase to finish checking auth
   if (isLoading) {
     return (
       <div className='h-screen w-full flex items-center justify-center bg-gray-50'>
@@ -22,32 +18,22 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     );
   }
 
-  // 2. If not logged in, redirect to Login
   if (!user) {
     return <Navigate to='/' replace />;
   }
-
-  // 3. If logged in but role data is missing (rare edge case), wait
   if (!userData) {
     return <div className='h-screen flex items-center justify-center'>Checking permissions...</div>;
   }
-
-  // 4. Role Check: If user tries to access Admin but is Staff (or vice versa)
   if (requiredRole && userData.role !== requiredRole) {
     return <Navigate to={userData.role === "admin" ? "/admin" : "/staff"} replace />;
   }
-
-  // 5. Access Granted
   return children;
 };
 
 export default function App() {
   return (
     <Routes>
-      {/* Public Routes */}
       <Route path='/' element={<Login />} />
-
-      {/* Protected Staff Route */}
       <Route
         path='/staff'
         element={
@@ -56,8 +42,6 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-
-      {/* Protected Admin Route */}
       <Route
         path='/admin'
         element={
@@ -66,8 +50,6 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-
-      {/* Fallback Route */}
       <Route path='*' element={<Navigate to='/' replace />} />
     </Routes>
   );
