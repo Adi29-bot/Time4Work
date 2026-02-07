@@ -6,14 +6,12 @@ import { getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, query, 
 const FirebaseContext = createContext(null);
 
 const firebaseConfig = {
-  // ... Your Config Keys ...
-  apiKey: "AIzaSyDCW2NLa9qvUHCaSg136_rnXTkzueUrhoU",
-  authDomain: "time4work-162ba.firebaseapp.com",
-  projectId: "time4work-162ba",
-  storageBucket: "time4work-162ba.firebasestorage.app",
-  messagingSenderId: "197779508212",
-  appId: "1:197779508212:web:93688939016ba51b7607a1",
-  measurementId: "G-TJ71RDXRSN",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 export const useFirebase = () => useContext(FirebaseContext);
@@ -22,21 +20,17 @@ const firebaseApp = initializeApp(firebaseConfig);
 const firebaseAuth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
 
-// --- HELPER: CALCULATE HOURS (The Brain) ---
-// Returns hours worked in a day (Decimal, e.g., 8.5)
 const calculateDailyHours = (entries) => {
   if (!entries || entries.length === 0) return 0;
 
-  // Sort by time
   const sorted = [...entries].sort((a, b) => a.time.localeCompare(b.time));
   let totalMinutes = 0;
   let checkInTime = null;
 
   sorted.forEach((entry) => {
     if (entry.type === "check-in") {
-      checkInTime = entry.time; // Store "09:00"
+      checkInTime = entry.time;
     } else if (entry.type === "check-out" && checkInTime) {
-      // Found a pair! Calculate difference.
       const [h1, m1] = checkInTime.split(":").map(Number);
       const [h2, m2] = entry.time.split(":").map(Number);
 
@@ -44,11 +38,11 @@ const calculateDailyHours = (entries) => {
       const endMins = h2 * 60 + m2;
 
       totalMinutes += endMins - startMins;
-      checkInTime = null; // Reset for next pair
+      checkInTime = null;
     }
   });
 
-  return totalMinutes / 60; // Convert to hours
+  return totalMinutes / 60;
 };
 
 export const FirebaseProvider = (props) => {
@@ -96,7 +90,7 @@ export const FirebaseProvider = (props) => {
     const userRef = doc(firestore, "users", uid);
     await deleteDoc(userRef);
   };
-  // --- TIMESHEET METHODS (With Auto-Calculation) ---
+  // --- TIMESHEET METHODS ---
 
   const recalculateTotals = async (sheetRef, entriesObj) => {
     let monthlyTotal = 0;
@@ -151,8 +145,6 @@ export const FirebaseProvider = (props) => {
     // Remove the entry
     currentDayEntries = currentDayEntries.filter((e) => e.id !== entryId);
     allEntries[dateKey] = currentDayEntries;
-
-    // Save AND Recalculate Totals
     await recalculateTotals(sheetRef, allEntries);
   };
 
